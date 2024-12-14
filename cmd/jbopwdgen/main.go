@@ -1,14 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
-	"math/rand"
+	lojban_password_gen "github.com/arran4/go-lojban-password-gen"
 	"os"
-	"regexp"
-	"strings"
-	"time"
 )
 
 func main() {
@@ -24,14 +20,13 @@ func main() {
 	flag.Parse()
 
 	// Parse gismu.txt and cmavo.txt files
-	var err error
-	gismuList, err = ParseGismuFile(*gismuPath)
+	gismuList, err := lojban_password_gen.ParseGismuFile(*gismuPath)
 	if err != nil {
 		fmt.Println("Error parsing gismu file:", err)
 		return
 	}
 
-	cmavoList, err = ParseCmavoFile(*cmavoPath)
+	cmavoList, err := lojban_password_gen.ParseCmavoFile(*cmavoPath)
 	if err != nil {
 		fmt.Println("Error parsing cmavo file:", err)
 		return
@@ -42,5 +37,5 @@ func main() {
 		return
 	}
 
-	GenerateSentence(*sentenceMinSize)
+	lojban_password_gen.GenerateSentence(*sentenceMinSize)
 }
