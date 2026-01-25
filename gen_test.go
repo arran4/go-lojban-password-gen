@@ -134,3 +134,56 @@ func TestParseCmavoFile(t *testing.T) {
 		t.Errorf("Expected seeAlso ['valsi'], got %v", c.SeeAlso)
 	}
 }
+
+func TestGenerateSentence(t *testing.T) {
+	// Setup mock data in global variables
+	originalGismuList := gismuList
+	originalCmavoList := cmavoList
+	defer func() {
+		gismuList = originalGismuList
+		cmavoList = originalCmavoList
+	}()
+
+	gismuList = []Gismu{
+		{Word: "gismu", Meaning: "root word"},
+		{Word: "broda", Meaning: "predicate var 1"},
+		{Word: "prami", Meaning: "love"},
+		{Word: "ta'e", Meaning: "habitually"}, // contains '
+	}
+	cmavoList = []Cmavo{
+		{Word: "mi", Meaning: "I"},
+		{Word: "do", Meaning: "you"},
+		{Word: ".ui", Meaning: "happiness"}, // contains .
+		{Word: "la'o", Meaning: "the quote"}, // contains '
+	}
+
+	// Test case 1: Standard generation
+	sentence, _ := GenerateSentence(5, false, false)
+	if sentence == "" {
+		t.Error("Generated sentence is empty")
+	}
+
+	// Test case 2: Include dot
+	sentence, _ = GenerateSentence(5, true, false)
+	if !strings.HasSuffix(sentence, ".") {
+		t.Errorf("Expected sentence to end with '.', got: %s", sentence)
+	}
+
+	// Test case 3: Include apostrophe
+	// We run it multiple times to ensure it works consistently, as it involves randomness
+	for i := 0; i < 10; i++ {
+		sentence, _ = GenerateSentence(5, false, true)
+		if !strings.Contains(sentence, "'") {
+			t.Errorf("Expected sentence to contain \"'\", got: %s", sentence)
+		}
+	}
+
+	// Test case 4: Both
+	sentence, _ = GenerateSentence(5, true, true)
+	if !strings.HasSuffix(sentence, ".") {
+		t.Errorf("Expected sentence to end with '.', got: %s", sentence)
+	}
+	if !strings.Contains(sentence, "'") {
+		t.Errorf("Expected sentence to contain \"'\", got: %s", sentence)
+	}
+}

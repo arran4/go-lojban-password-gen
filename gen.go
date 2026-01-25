@@ -147,7 +147,7 @@ func RandomElement[T any](list []T) T {
 }
 
 // GenerateSentence Generate a valid lojban sentence following grammar rules
-func GenerateSentence(minSize int) {
+func GenerateSentence(minSize int, includeDot bool, includeApostrophe bool) (string, []string) {
 	length := rand.Intn(3) + minSize // Ensure minimum size + random expansion
 	meaningDescriptions := []string{}
 
@@ -174,11 +174,84 @@ func GenerateSentence(minSize int) {
 		}
 	}
 
-	fmt.Println("Generated Random Lojban sequence:")
-	fmt.Println(strings.Join(sentenceParts, " "))
+	if includeApostrophe {
+		hasApostrophe := false
+		for _, part := range sentenceParts {
+			if strings.Contains(part, "'") {
+				hasApostrophe = true
+				break
+			}
+		}
 
-	fmt.Println("\nSentence Components:")
-	for _, description := range meaningDescriptions {
-		fmt.Println(description)
+		if !hasApostrophe && len(sentenceParts) > 0 {
+			// Find a replacement word with an apostrophe
+			var candidates []string
+			var candidateMeanings []string
+
+			// Gather candidates from gismu and cmavo
+			for _, g := range gismuList {
+				if strings.Contains(g.Word, "'") {
+					candidates = append(candidates, g.Word)
+					candidateMeanings = append(candidateMeanings, fmt.Sprintf("%s: %s", g.Word, g.Meaning))
+				}
+			}
+			for _, c := range cmavoList {
+				if strings.Contains(c.Word, "'") {
+					candidates = append(candidates, c.Word)
+					candidateMeanings = append(candidateMeanings, fmt.Sprintf("%s: %s", c.Word, c.Meaning))
+				}
+			}
+
+			if len(candidates) > 0 {
+				idx := rand.Intn(len(candidates))
+				replacement := candidates[idx]
+				replacementMeaning := candidateMeanings[idx]
+
+				// Replace a random part (excluding the number if possible, or just replace valid index)
+				// We need to be careful not to replace the number if we can avoid it, but numbers are parts too.
+				// Numbers don't have meaning descriptions in the same list order necessarily (inserted at numberPos).
+				// sentenceParts contains the words + number. meaningDescriptions contains just word meanings.
+
+				replaceIdx := rand.Intn(len(sentenceParts))
+				// Ensure we replace a word if possible, not the number
+				// number is at numberPos in loop, but sentenceParts order depends on numberPos.
+				// Actually sentenceParts is built sequentially.
+				// if numberPos == i, we append number.
+				// The number is exactly at index `numberPos` in `sentenceParts`?
+				// Loop runs 0 to length.
+				// if numberPos==0, number is first.
+				// It seems numberPos is the index in the resulting sentenceParts.
+
+				if replaceIdx == numberPos && len(sentenceParts) > 1 {
+					// try another one
+					replaceIdx = (replaceIdx + 1) % len(sentenceParts)
+				}
+
+				sentenceParts[replaceIdx] = replacement
+
+				// Update meaning descriptions. This is trickier because number is in sentenceParts but not in meaningDescriptions.
+				// We need to map sentencePart index to meaningDescription index.
+				// If index < numberPos, meaningIndex = index.
+				// If index > numberPos, meaningIndex = index - 1.
+				// If index == numberPos, it's the number (no meaning description).
+
+				if replaceIdx != numberPos {
+					meaningIdx := replaceIdx
+					if replaceIdx > numberPos {
+						meaningIdx--
+					}
+					if meaningIdx >= 0 && meaningIdx < len(meaningDescriptions) {
+						meaningDescriptions[meaningIdx] = replacementMeaning
+					}
+				}
+			}
+		}
 	}
+
+	sentence := strings.Join(sentenceParts, " ")
+	if includeDot {
+		sentence += "."
+	}
+
+	return sentence, meaningDescriptions
 }
