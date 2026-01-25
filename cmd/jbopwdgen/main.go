@@ -3,11 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	lojban_password_gen "github.com/arran4/go-lojban-password-gen"
+	"math/rand"
 	"os"
+	"time"
+
+	lojban_password_gen "github.com/arran4/go-lojban-password-gen"
 )
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
 	// Define flags for configuration
 	dictionaryDir := os.Getenv("DICTIONARY_DIR")
 	if dictionaryDir == "" {
@@ -17,6 +21,8 @@ func main() {
 	gismuPath := flag.String("gismu", dictionaryDir+"/gismu.txt", "Path to gismu.txt file")
 	cmavoPath := flag.String("cmavo", dictionaryDir+"/cmavo.txt", "Path to cmavo.txt file")
 	sentenceMinSize := flag.Int("minsize", 5, "Minimum number of words in the generated sentence")
+	mode := flag.String("mode", "sentence", "Generation mode: 'sentence' or 'lujvo'")
+	includeLujvo := flag.Bool("lujvo", false, "Include lujvo in sentence generation (only for sentence mode)")
 	flag.Parse()
 
 	// Parse gismu.txt and cmavo.txt files
@@ -37,5 +43,17 @@ func main() {
 		return
 	}
 
-	lojban_password_gen.GenerateSentence(*sentenceMinSize)
+	generator := lojban_password_gen.Generator{
+		GismuList:    gismuList,
+		CmavoList:    cmavoList,
+		IncludeLujvo: *includeLujvo,
+	}
+
+	if *mode == "lujvo" {
+		lujvo, meaning := generator.GenerateLujvo()
+		fmt.Printf("Generated Lujvo: %s\n", lujvo)
+		fmt.Printf("Meaning: %s\n", meaning)
+	} else {
+		generator.GenerateSentence(*sentenceMinSize)
+	}
 }

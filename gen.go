@@ -29,9 +29,11 @@ type Cmavo struct {
 	SeeAlso  []string
 }
 
-// Lists to hold parsed data
-var gismuList []Gismu
-var cmavoList []Cmavo
+type Generator struct {
+	GismuList    []Gismu
+	CmavoList    []Cmavo
+	IncludeLujvo bool
+}
 
 // ParseGismuFile Function to parse gismu.txt file with strict format and validation
 func ParseGismuFile(filename string) ([]Gismu, error) {
@@ -146,8 +148,50 @@ func RandomElement[T any](list []T) T {
 	return list[rand.Intn(len(list))]
 }
 
+// GenerateLujvo Generates a logical compound word (lujvo) from 2 random gismu
+func (g *Generator) GenerateLujvo() (string, string) {
+	// Pick 2 gismu
+	g1 := RandomElement(g.GismuList)
+	g2 := RandomElement(g.GismuList)
+
+	// Helper to get a rafsi
+	getRafsi := func(gis Gismu, isLast bool) string {
+		var candidates []string
+		if gis.RafsiCVC != "" {
+			candidates = append(candidates, gis.RafsiCVC)
+		}
+		if gis.RafsiCCV != "" {
+			candidates = append(candidates, gis.RafsiCCV)
+		}
+		if gis.RafsiCVV != "" {
+			candidates = append(candidates, gis.RafsiCVV)
+		}
+
+		if len(candidates) > 0 {
+			return candidates[rand.Intn(len(candidates))]
+		}
+		// Fallback
+		if isLast {
+			return gis.Word // Use full word at end
+		}
+		// Crude fallback: 4 letters + y
+		if len(gis.Word) >= 4 {
+			return gis.Word[0:4] + "y"
+		}
+		return gis.Word // Should not happen for valid gismu
+	}
+
+	r1 := getRafsi(g1, false)
+	r2 := getRafsi(g2, true)
+
+	// Simple concatenation
+	lujvo := r1 + r2
+	meaning := fmt.Sprintf("lujvo(%s + %s)", g1.Keyword, g2.Keyword)
+	return lujvo, meaning
+}
+
 // GenerateSentence Generate a valid lojban sentence following grammar rules
-func GenerateSentence(minSize int) {
+func (g *Generator) GenerateSentence(minSize int) {
 	length := rand.Intn(3) + minSize // Ensure minimum size + random expansion
 	meaningDescriptions := []string{}
 
@@ -162,13 +206,21 @@ func GenerateSentence(minSize int) {
 		if i >= length {
 			break
 		}
-		switch rand.Intn(10) {
+		r := rand.Intn(10)
+		if g.IncludeLujvo && rand.Intn(5) == 0 {
+			lujvo, meaning := g.GenerateLujvo()
+			sentenceParts = append(sentenceParts, lujvo)
+			meaningDescriptions = append(meaningDescriptions, fmt.Sprintf("%s: %s", lujvo, meaning))
+			continue
+		}
+
+		switch r {
 		case 0, 1, 2, 3, 4:
-			randSumti := RandomElement(gismuList)
+			randSumti := RandomElement(g.GismuList)
 			sentenceParts = append(sentenceParts, randSumti.Word)
 			meaningDescriptions = append(meaningDescriptions, fmt.Sprintf("%s: %s", randSumti.Word, randSumti.Meaning))
 		case 5, 6, 7, 8, 9:
-			randCmavo := RandomElement(cmavoList)
+			randCmavo := RandomElement(g.CmavoList)
 			sentenceParts = append(sentenceParts, randCmavo.Word)
 			meaningDescriptions = append(meaningDescriptions, fmt.Sprintf("%s: %s", randCmavo.Word, randCmavo.Meaning))
 		}
