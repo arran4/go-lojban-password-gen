@@ -17,7 +17,16 @@ func main() {
 
 	gismuPath := flag.String("gismu", "", "Path to gismu.txt file")
 	cmavoPath := flag.String("cmavo", "", "Path to cmavo.txt file")
-	noEmbed := flag.Bool("no-embed", false, "Do not use embedded dictionaries")
+
+	var noEmbed *bool
+	_, _, embedsAvailable := lojban_password_gen.GetEmbeddedDicts()
+	if embedsAvailable {
+		noEmbed = flag.Bool("no-embed", false, "Do not use embedded dictionaries")
+	} else {
+		f := false
+		noEmbed = &f
+	}
+
 	sentenceMinSize := flag.Int("minsize", 5, "Minimum number of words in the generated sentence")
 	mode := flag.String("mode", "sentence", "Generation mode: 'sentence' or 'lujvo'")
 	includeLujvo := flag.Bool("lujvo", false, "Include lujvo in sentence generation (only for sentence mode)")
