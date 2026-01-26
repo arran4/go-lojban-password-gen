@@ -3,6 +3,7 @@ package lojban_password_gen
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"regexp"
@@ -37,17 +38,21 @@ type Generator struct {
 
 // ParseGismuFile Function to parse gismu.txt file with strict format and validation
 func ParseGismuFile(filename string) ([]Gismu, error) {
-	var list []Gismu
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("error opening file %s: %v", filename, err)
 	}
 	defer file.Close()
 
+	return ParseGismuFromReader(file)
+}
+
+func ParseGismuFromReader(r io.Reader) ([]Gismu, error) {
+	var list []Gismu
 	placementRegex := regexp.MustCompile(`x\d.*?`)         // Regex to find x1, x2...
 	seeAlsoRegex := regexp.MustCompile(`\(cf\. ([^)]+)\)`) // Extract see-also references
 
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(r)
 	for lineNumber := 1; scanner.Scan(); lineNumber++ {
 		line := scanner.Text()
 
@@ -96,15 +101,18 @@ func ParseGismuFile(filename string) ([]Gismu, error) {
 
 // ParseCmavoFile Function to parse cmavo.txt file with validation
 func ParseCmavoFile(filename string) ([]Cmavo, error) {
-	var list []Cmavo
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("error opening file %s: %v", filename, err)
 	}
 	defer file.Close()
+	return ParseCmavoFromReader(file)
+}
 
+func ParseCmavoFromReader(r io.Reader) ([]Cmavo, error) {
+	var list []Cmavo
 	seeAlsoRegex := regexp.MustCompile(`\(cf\. ([^)]+)\)`) // Extract see-also references
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(r)
 	for lineNumber := 1; scanner.Scan(); lineNumber++ {
 		line := scanner.Text()
 
