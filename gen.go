@@ -2,8 +2,9 @@ package lojban_password_gen
 
 import (
 	"bufio"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"os"
 	"regexp"
 	"strings"
@@ -29,9 +30,35 @@ type Cmavo struct {
 	SeeAlso  []string
 }
 
-// Lists to hold parsed data
-var gismuList []Gismu
-var cmavoList []Cmavo
+// Generator holds the dictionary lists and caching for efficient generation
+type Generator struct {
+	GismuList           []Gismu
+	CmavoList           []Cmavo
+	GismuWithApostrophe []Gismu
+	CmavoWithApostrophe []Cmavo
+}
+
+// NewGenerator initializes a new Generator with the provided lists
+func NewGenerator(gismu []Gismu, cmavo []Cmavo) *Generator {
+	gen := &Generator{
+		GismuList: gismu,
+		CmavoList: cmavo,
+	}
+
+	// Pre-calculate lists of words with apostrophes
+	for _, g := range gismu {
+		if strings.Contains(g.Word, "'") {
+			gen.GismuWithApostrophe = append(gen.GismuWithApostrophe, g)
+		}
+	}
+	for _, c := range cmavo {
+		if strings.Contains(c.Word, "'") {
+			gen.CmavoWithApostrophe = append(gen.CmavoWithApostrophe, c)
+		}
+	}
+
+	return gen
+}
 
 // ParseGismuFile Function to parse gismu.txt file with strict format and validation
 func ParseGismuFile(filename string) ([]Gismu, error) {
@@ -141,34 +168,51 @@ func ParseCmavoFile(filename string) ([]Cmavo, error) {
 	return list, nil
 }
 
+// cryptoIntn returns a random integer in [0, max) using crypto/rand
+func cryptoIntn(max int) int {
+	if max <= 0 {
+		return 0
+	}
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+	if err != nil {
+		// Fallback or panic? For a password generator, panic on failure is safer than weak randomness.
+		panic(fmt.Sprintf("failed to get secure random number: %v", err))
+	}
+	return int(n.Int64())
+}
+
 // RandomElement Function to get a random element from a slice
 func RandomElement[T any](list []T) T {
-	return list[rand.Intn(len(list))]
+	if len(list) == 0 {
+		var zero T
+		return zero
+	}
+	return list[cryptoIntn(len(list))]
 }
 
 // GenerateSentence Generate a valid lojban sentence following grammar rules
-func GenerateSentence(minSize int, includeDot bool, includeApostrophe bool) (string, []string) {
-	length := rand.Intn(3) + minSize // Ensure minimum size + random expansion
+func (g *Generator) GenerateSentence(minSize int, includeDot bool, includeApostrophe bool) (string, []string) {
+	length := cryptoIntn(3) + minSize // Ensure minimum size + random expansion
 	meaningDescriptions := []string{}
 
 	var sentenceParts []string
-	numberPos := rand.Intn(length + 1)
+	numberPos := cryptoIntn(length + 1)
 
 	// Add cmavo, sumti, and numbers for sentence variety
 	for i := 0; i <= length; i++ {
 		if numberPos == i {
-			sentenceParts = append(sentenceParts, fmt.Sprint(rand.Intn(100)))
+			sentenceParts = append(sentenceParts, fmt.Sprint(cryptoIntn(100)))
 		}
 		if i >= length {
 			break
 		}
-		switch rand.Intn(10) {
+		switch cryptoIntn(10) {
 		case 0, 1, 2, 3, 4:
-			randSumti := RandomElement(gismuList)
+			randSumti := RandomElement(g.GismuList)
 			sentenceParts = append(sentenceParts, randSumti.Word)
 			meaningDescriptions = append(meaningDescriptions, fmt.Sprintf("%s: %s", randSumti.Word, randSumti.Meaning))
 		case 5, 6, 7, 8, 9:
-			randCmavo := RandomElement(cmavoList)
+			randCmavo := RandomElement(g.CmavoList)
 			sentenceParts = append(sentenceParts, randCmavo.Word)
 			meaningDescriptions = append(meaningDescriptions, fmt.Sprintf("%s: %s", randCmavo.Word, randCmavo.Meaning))
 		}
@@ -184,43 +228,27 @@ func GenerateSentence(minSize int, includeDot bool, includeApostrophe bool) (str
 		}
 
 		if !hasApostrophe && len(sentenceParts) > 0 {
-			// Find a replacement word with an apostrophe
 			var candidates []string
 			var candidateMeanings []string
 
-			// Gather candidates from gismu and cmavo
-			for _, g := range gismuList {
-				if strings.Contains(g.Word, "'") {
-					candidates = append(candidates, g.Word)
-					candidateMeanings = append(candidateMeanings, fmt.Sprintf("%s: %s", g.Word, g.Meaning))
-				}
+			// Use pre-calculated lists
+			for _, item := range g.GismuWithApostrophe {
+				candidates = append(candidates, item.Word)
+				candidateMeanings = append(candidateMeanings, fmt.Sprintf("%s: %s", item.Word, item.Meaning))
 			}
-			for _, c := range cmavoList {
-				if strings.Contains(c.Word, "'") {
-					candidates = append(candidates, c.Word)
-					candidateMeanings = append(candidateMeanings, fmt.Sprintf("%s: %s", c.Word, c.Meaning))
-				}
+			for _, item := range g.CmavoWithApostrophe {
+				candidates = append(candidates, item.Word)
+				candidateMeanings = append(candidateMeanings, fmt.Sprintf("%s: %s", item.Word, item.Meaning))
 			}
 
 			if len(candidates) > 0 {
-				idx := rand.Intn(len(candidates))
+				idx := cryptoIntn(len(candidates))
 				replacement := candidates[idx]
 				replacementMeaning := candidateMeanings[idx]
 
-				// Replace a random part (excluding the number if possible, or just replace valid index)
-				// We need to be careful not to replace the number if we can avoid it, but numbers are parts too.
-				// Numbers don't have meaning descriptions in the same list order necessarily (inserted at numberPos).
-				// sentenceParts contains the words + number. meaningDescriptions contains just word meanings.
-
-				replaceIdx := rand.Intn(len(sentenceParts))
+				replaceIdx := cryptoIntn(len(sentenceParts))
 				// Ensure we replace a word if possible, not the number
-				// number is at numberPos in loop, but sentenceParts order depends on numberPos.
-				// Actually sentenceParts is built sequentially.
-				// if numberPos == i, we append number.
-				// The number is exactly at index `numberPos` in `sentenceParts`?
-				// Loop runs 0 to length.
-				// if numberPos==0, number is first.
-				// It seems numberPos is the index in the resulting sentenceParts.
+				// numberPos is the index in the resulting sentenceParts.
 
 				if replaceIdx == numberPos && len(sentenceParts) > 1 {
 					// try another one
@@ -229,12 +257,7 @@ func GenerateSentence(minSize int, includeDot bool, includeApostrophe bool) (str
 
 				sentenceParts[replaceIdx] = replacement
 
-				// Update meaning descriptions. This is trickier because number is in sentenceParts but not in meaningDescriptions.
-				// We need to map sentencePart index to meaningDescription index.
-				// If index < numberPos, meaningIndex = index.
-				// If index > numberPos, meaningIndex = index - 1.
-				// If index == numberPos, it's the number (no meaning description).
-
+				// Update meaning descriptions. The number is in sentenceParts at numberPos, but not in meaningDescriptions.
 				if replaceIdx != numberPos {
 					meaningIdx := replaceIdx
 					if replaceIdx > numberPos {

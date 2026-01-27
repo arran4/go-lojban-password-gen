@@ -17,7 +17,7 @@ func main() {
 	gismuPath := flag.String("gismu", dictionaryDir+"/gismu.txt", "Path to gismu.txt file")
 	cmavoPath := flag.String("cmavo", dictionaryDir+"/cmavo.txt", "Path to cmavo.txt file")
 	sentenceMinSize := flag.Int("minsize", 5, "Minimum number of words in the generated sentence")
-	flagDot := flag.Bool("dot", false, "Include a period at the end of the sentence")
+	flagDot := flag.Bool("dot", false, "Include a period (special character) at the end of the sentence")
 	flagApostrophe := flag.Bool("apostrophe", false, "Ensure the sentence includes an apostrophe")
 	flag.Parse()
 
@@ -39,7 +39,8 @@ func main() {
 		return
 	}
 
-	sentence, descriptions := lojban_password_gen.GenerateSentence(*sentenceMinSize, *flagDot, *flagApostrophe)
+	gen := lojban_password_gen.NewGenerator(gismuList, cmavoList)
+	sentence, descriptions := gen.GenerateSentence(*sentenceMinSize, *flagDot, *flagApostrophe)
 	fmt.Println("Generated Random Lojban sequence:")
 	fmt.Println(sentence)
 
