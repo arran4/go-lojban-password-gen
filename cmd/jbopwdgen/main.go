@@ -28,6 +28,8 @@ func main() {
 	}
 
 	sentenceMinSize := flag.Int("minsize", 5, "Minimum number of words in the generated sentence")
+	flagDot := flag.Bool("dot", false, "Include a period (special character) at the end of the sentence")
+	flagApostrophe := flag.Bool("apostrophe", false, "Ensure the sentence includes an apostrophe")
 	mode := flag.String("mode", "sentence", "Generation mode: 'sentence' or 'lujvo'")
 	includeLujvo := flag.Bool("lujvo", false, "Include lujvo in sentence generation (only for sentence mode)")
 	flag.Parse()
@@ -99,6 +101,16 @@ func main() {
 		return
 	}
 
+	gen := lojban_password_gen.NewGenerator(gismuList, cmavoList)
+	sentence, descriptions := gen.GenerateSentence(*sentenceMinSize, *flagDot, *flagApostrophe)
+	fmt.Println("Generated Random Lojban sequence:")
+	fmt.Println(sentence)
+
+	fmt.Println("\nSentence Components:")
+	for _, description := range descriptions {
+		fmt.Println(description)
+  }
+  // TODO redundancy fix.
 	generator := lojban_password_gen.Generator{
 		GismuList:    gismuList,
 		CmavoList:    cmavoList,
