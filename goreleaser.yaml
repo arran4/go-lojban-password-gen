@@ -6,6 +6,15 @@ builds:
     dir: cmd/jbopwdgen
     env:
       - CGO_ENABLED=0
+  -
+    id: "jbopwdgen-embed"
+    binary: "jbopwdgen-embed"
+    dir: cmd/jbopwdgen
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -tags
+      - embed_dicts
 archives:
   -
     format_overrides:

@@ -1,2 +1,10 @@
-/tmp
-/result.md
+# Binaries
+jbopwdgen
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Dictionaries
+gismu.txt
+cmavo.txt

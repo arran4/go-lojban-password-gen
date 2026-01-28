@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"io"
+	"math/rand"
 	"os"
 	"regexp"
 	"strings"
@@ -36,6 +38,7 @@ type Generator struct {
 	CmavoList           []Cmavo
 	GismuWithApostrophe []Gismu
 	CmavoWithApostrophe []Cmavo
+	IncludeLujvo bool
 }
 
 // NewGenerator initializes a new Generator with the provided lists
@@ -62,17 +65,21 @@ func NewGenerator(gismu []Gismu, cmavo []Cmavo) *Generator {
 
 // ParseGismuFile Function to parse gismu.txt file with strict format and validation
 func ParseGismuFile(filename string) ([]Gismu, error) {
-	var list []Gismu
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("error opening file %s: %v", filename, err)
 	}
 	defer file.Close()
 
+	return ParseGismuFromReader(file)
+}
+
+func ParseGismuFromReader(r io.Reader) ([]Gismu, error) {
+	var list []Gismu
 	placementRegex := regexp.MustCompile(`x\d.*?`)         // Regex to find x1, x2...
 	seeAlsoRegex := regexp.MustCompile(`\(cf\. ([^)]+)\)`) // Extract see-also references
 
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(r)
 	for lineNumber := 1; scanner.Scan(); lineNumber++ {
 		line := scanner.Text()
 
@@ -121,15 +128,18 @@ func ParseGismuFile(filename string) ([]Gismu, error) {
 
 // ParseCmavoFile Function to parse cmavo.txt file with validation
 func ParseCmavoFile(filename string) ([]Cmavo, error) {
-	var list []Cmavo
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("error opening file %s: %v", filename, err)
 	}
 	defer file.Close()
+	return ParseCmavoFromReader(file)
+}
 
+func ParseCmavoFromReader(r io.Reader) ([]Cmavo, error) {
+	var list []Cmavo
 	seeAlsoRegex := regexp.MustCompile(`\(cf\. ([^)]+)\)`) // Extract see-also references
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(r)
 	for lineNumber := 1; scanner.Scan(); lineNumber++ {
 		line := scanner.Text()
 
@@ -190,6 +200,48 @@ func RandomElement[T any](list []T) T {
 	return list[cryptoIntn(len(list))]
 }
 
+// GenerateLujvo Generates a logical compound word (lujvo) from 2 random gismu
+func (g *Generator) GenerateLujvo() (string, string) {
+	// Pick 2 gismu
+	g1 := RandomElement(g.GismuList)
+	g2 := RandomElement(g.GismuList)
+
+	// Helper to get a rafsi
+	getRafsi := func(gis Gismu, isLast bool) string {
+		var candidates []string
+		if gis.RafsiCVC != "" {
+			candidates = append(candidates, gis.RafsiCVC)
+		}
+		if gis.RafsiCCV != "" {
+			candidates = append(candidates, gis.RafsiCCV)
+		}
+		if gis.RafsiCVV != "" {
+			candidates = append(candidates, gis.RafsiCVV)
+		}
+
+		if len(candidates) > 0 {
+			return candidates[rand.Intn(len(candidates))]
+		}
+		// Fallback
+		if isLast {
+			return gis.Word // Use full word at end
+		}
+		// Crude fallback: 4 letters + y
+		if len(gis.Word) >= 4 {
+			return gis.Word[0:4] + "y"
+		}
+		return gis.Word // Should not happen for valid gismu
+	}
+
+	r1 := getRafsi(g1, false)
+	r2 := getRafsi(g2, true)
+
+	// Simple concatenation
+	lujvo := r1 + r2
+	meaning := fmt.Sprintf("lujvo(%s + %s)", g1.Keyword, g2.Keyword)
+	return lujvo, meaning
+}
+
 // GenerateSentence Generate a valid lojban sentence following grammar rules
 func (g *Generator) GenerateSentence(minSize int, includeDot bool, includeApostrophe bool) (string, []string) {
 	length := cryptoIntn(3) + minSize // Ensure minimum size + random expansion
@@ -206,7 +258,15 @@ func (g *Generator) GenerateSentence(minSize int, includeDot bool, includeApostr
 		if i >= length {
 			break
 		}
-		switch cryptoIntn(10) {
+		r := cryptoIntn(10)
+		if g.IncludeLujvo && rand.Intn(5) == 0 {
+			lujvo, meaning := g.GenerateLujvo()
+			sentenceParts = append(sentenceParts, lujvo)
+			meaningDescriptions = append(meaningDescriptions, fmt.Sprintf("%s: %s", lujvo, meaning))
+			continue
+		}
+
+		switch r {
 		case 0, 1, 2, 3, 4:
 			randSumti := RandomElement(g.GismuList)
 			sentenceParts = append(sentenceParts, randSumti.Word)
