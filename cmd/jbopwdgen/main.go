@@ -102,26 +102,20 @@ func main() {
 	}
 
 	gen := lojban_password_gen.NewGenerator(gismuList, cmavoList)
-	sentence, descriptions := gen.GenerateSentence(*sentenceMinSize, *flagDot, *flagApostrophe)
-	fmt.Println("Generated Random Lojban sequence:")
-	fmt.Println(sentence)
-
-	fmt.Println("\nSentence Components:")
-	for _, description := range descriptions {
-		fmt.Println(description)
-  }
-  // TODO redundancy fix.
-	generator := lojban_password_gen.Generator{
-		GismuList:    gismuList,
-		CmavoList:    cmavoList,
-		IncludeLujvo: *includeLujvo,
-	}
+	gen.IncludeLujvo = *includeLujvo
 
 	if *mode == "lujvo" {
-		lujvo, meaning := generator.GenerateLujvo()
+		lujvo, meaning := gen.GenerateLujvo()
 		fmt.Printf("Generated Lujvo: %s\n", lujvo)
 		fmt.Printf("Meaning: %s\n", meaning)
 	} else {
-		generator.GenerateSentence(*sentenceMinSize)
+		sentence, descriptions := gen.GenerateSentence(*sentenceMinSize, *flagDot, *flagApostrophe)
+		fmt.Println("Generated Random Lojban sequence:")
+		fmt.Println(sentence)
+
+		fmt.Println("\nSentence Components:")
+		for _, description := range descriptions {
+			fmt.Println(description)
+		}
 	}
 }

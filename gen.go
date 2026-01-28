@@ -4,9 +4,8 @@ import (
 	"bufio"
 	"crypto/rand"
 	"fmt"
-	"math/big"
 	"io"
-	"math/rand"
+	"math/big"
 	"os"
 	"regexp"
 	"strings"
@@ -220,7 +219,7 @@ func (g *Generator) GenerateLujvo() (string, string) {
 		}
 
 		if len(candidates) > 0 {
-			return candidates[rand.Intn(len(candidates))]
+			return candidates[cryptoIntn(len(candidates))]
 		}
 		// Fallback
 		if isLast {
@@ -259,7 +258,7 @@ func (g *Generator) GenerateSentence(minSize int, includeDot bool, includeApostr
 			break
 		}
 		r := cryptoIntn(10)
-		if g.IncludeLujvo && rand.Intn(5) == 0 {
+		if g.IncludeLujvo && cryptoIntn(5) == 0 {
 			lujvo, meaning := g.GenerateLujvo()
 			sentenceParts = append(sentenceParts, lujvo)
 			meaningDescriptions = append(meaningDescriptions, fmt.Sprintf("%s: %s", lujvo, meaning))
