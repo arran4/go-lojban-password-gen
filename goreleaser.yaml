@@ -1,4 +1,8 @@
 project_name: lojban-password-gen
+before:
+  hooks:
+    - sh -c "test -f gismu.txt || wget -q https://lojban.org/publications/wordlists/gismu.txt"
+    - sh -c "test -f cmavo.txt || wget -q https://lojban.org/publications/wordlists/cmavo.txt"
 builds:
   -
     id: "jbopwdgen"
